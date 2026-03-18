@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="config-page">
+    <h1>⚙️ 模型配置 (Model Configuration)</h1>
+
+    <div class="grid-cols-2" style="align-items:start;">
+        <div class="card">
+            <h3>🤖 模型配置 (Model Settings)</h3>
+            <div style="margin-top:20px; display:grid; gap:16px;">
+                <div>
+                    <label style="display:block; margin-bottom:8px; color:var(--text-muted);">提供方 (Provider)</label>
+                    <select id="providerSelect" style="width:100%; padding:10px; background:#222; color:white; border:1px solid #444; border-radius:8px;">
+                        <option value="openai_compatible">Wangsu-gw</option>
+                        <option value="ollama">Ollama</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display:block; margin-bottom:8px; color:var(--text-muted);">API 地址 (API Base URL)</label>
+                    <input type="text" id="baseUrlInput" style="width:100%; background:#222; border:1px solid #444; color:white; border-radius:8px; padding:10px;" placeholder="例如: http://10.212.70.23:8080/v1">
+                </div>
+
+                <div>
+                    <label style="display:block; margin-bottom:8px; color:var(--text-muted);">API 密钥 (API Key)</label>
+                    <input type="password" id="apiKeyInput" style="width:100%; background:#222; border:1px solid #444; color:white; border-radius:8px; padding:10px;" placeholder="输入远端网关 API Key">
+                    <div id="apiKeyHint" style="margin-top:8px; color:var(--text-muted); font-size:0.85rem;"></div>
+                </div>
+
+                <div>
+                    <label style="display:block; margin-bottom:8px; color:var(--text-muted);">添加模型名称 (Add Model Name)</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="preferredModelInput" style="flex:1; width:100%; background:#222; border:1px solid #444; color:white; border-radius:8px; padding:10px;" placeholder="例如: qwen3-vl:8b">
+                        <button class="btn btn-primary" type="button" onclick="addManualModel()">添加模型</button>
+                    </div>
+                    <div style="margin-top:8px; color:var(--text-muted); font-size:0.85rem;">
+                        当网关不提供 `/models` 接口时，可在同一通道下手工添加多个模型名称。
+                    </div>
+                    <div id="manualModelList" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;"></div>
+                </div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="saveModelConfig()">保存配置 (Save)</button>
+                    <button class="btn" style="background:#333; color:white;" onclick="testModelConfig()">检测连接 (Test)</button>
+                    <button class="btn" style="background:#333; color:white;" onclick="refreshModels()">刷新模型列表 (Refresh)</button>
+                </div>
+
+                <div id="modelHint" style="color:var(--text-muted); font-size:0.9rem;">
+                    正在加载模型配置...
+                </div>
+
+                <div style="border-top:1px solid #333; padding-top:16px;">
+                    <label style="display:block; margin-bottom:10px; color:var(--text-muted);">可用模型 (Available Models)</label>
+                    <div id="modelList" style="display:grid; gap:10px; max-height:460px; overflow:auto;">
+                        <div style="color:var(--text-muted);">正在加载模型列表...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🎯 目标检测配置 (Detection Targets)</h3>
+            <div style="margin-top:20px;">
+                <!-- Target List Display -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display:block; margin-bottom:8px; color:var(--text-muted);">当前已定义目标 (Active
+                        Targets)</label>
+                    <div id="targetList" style="display:flex; flex-wrap:wrap; gap:8px; min-height: 40px;">
+                        <!-- JS injected tags -->
+                    </div>
+                </div>
+
+                <hr style="border:0; border-top:1px solid #333; margin: 20px 0;">
+
+                <label style="display:block; margin-bottom:8px; color:var(--text-muted);">定义新目标 [自然语言] (Add Custom
+                    Target)</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="newTargetInput" style="flex:1; background:#222; border:1px solid #444; color:white; border-radius:8px; padding:10px;" placeholder="例如: '未佩戴安全帽的工人'">
+                    <button class="btn btn-primary" onclick="addTarget()">添加 (Add)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedModelId = '';
+    let currentModels = [];
+    let manualModels = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadTargets();
+        loadModelConfig();
+    });
+
+    function getProviderPayload() {
+        return {
+            provider: document.getElementById('providerSelect').value,
+            base_url: document.getElementById('baseUrlInput').value.trim(),
+            api_key: document.getElementById('apiKeyInput').value.trim(),
+            preferred_model: manualModels[0] || '',
+            manual_models: manualModels
+        };
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderManualModels() {
+        const container = document.getElementById('manualModelList');
+        container.innerHTML = '';
+
+        if (!manualModels.length) {
+            container.innerHTML = '<span style="color:var(--text-muted); font-size:0.85rem;">当前未添加手工模型</span>';
+            return;
+        }
+
+        manualModels.forEach(modelName => {
+            const tag = document.createElement('span');
+            tag.style.display = 'inline-flex';
+            tag.style.alignItems = 'center';
+            tag.style.gap = '8px';
+            tag.style.padding = '6px 10px';
+            tag.style.borderRadius = '999px';
+            tag.style.background = 'rgba(0, 255, 157, 0.12)';
+            tag.style.color = '#00ff9d';
+            tag.style.border = '1px solid rgba(0, 255, 157, 0.25)';
+            tag.innerHTML = `${escapeHtml(modelName)} <button type="button" onclick="removeManualModel('${escapeHtml(modelName)}')" style="background:none; border:none; color:#9ae6c3; cursor:pointer; padding:0;">×</button>`;
+            container.appendChild(tag);
+        });
+    }
+
+    function addManualModel() {
+        const input = document.getElementById('preferredModelInput');
+        const modelName = input.value.trim();
+        if (!modelName) return;
+        if (!manualModels.includes(modelName)) {
+            manualModels.push(modelName);
+        }
+        input.value = '';
+        renderManualModels();
+    }
+
+    function removeManualModel(modelName) {
+        manualModels = manualModels.filter(item => item !== modelName);
+        if (selectedModelId === `openai:${modelName}`) {
+            selectedModelId = manualModels.length ? `openai:${manualModels[0]}` : '';
+        }
+        renderManualModels();
+        renderModelList(currentModels.filter(item => item.source !== 'manual' || item.model !== modelName));
+    }
+
+    async function loadModelConfig() {
+        const providerSelect = document.getElementById('providerSelect');
+        const baseUrlInput = document.getElementById('baseUrlInput');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const apiKeyHint = document.getElementById('apiKeyHint');
+        const hint = document.getElementById('modelHint');
+
+        try {
+            const res = await fetch('/api/v1/model-config');
+            const data = await res.json();
+            const providerConfig = data.provider_config || {};
+            providerSelect.value = providerConfig.provider || 'openai_compatible';
+            baseUrlInput.value = providerConfig.base_url || '';
+            apiKeyInput.value = providerConfig.api_key || '';
+            manualModels = Array.isArray(providerConfig.manual_models) ?
+                providerConfig.manual_models :
+                (providerConfig.preferred_model ? [providerConfig.preferred_model] : []);
+            renderManualModels();
+            apiKeyHint.textContent = providerConfig.has_api_key ?
+                `密钥已加载（来自 .env）${providerConfig.api_key_masked ? '，脱敏: ' + providerConfig.api_key_masked : ''}` :
+                '请在项目根目录 .env 中配置 AI_GATEWAY_API_KEY，或在此填写后保存（不落盘）';
+
+            selectedModelId = data.active_model_id || selectedModelId;
+            currentModels = data.models || [];
+            renderModelList(currentModels);
+
+            const parts = [];
+            if (data.active_model) {
+                parts.push(`当前默认模型: ${data.active_model.label}`);
+            }
+            if (data.remote_fetch && data.remote_fetch.message) {
+                parts.push(`刷新状态: ${data.remote_fetch.message}`);
+            }
+            if (data.connection_test && data.connection_test.message) {
+                parts.push(`连接检测: ${data.connection_test.message}`);
+            }
+            hint.textContent = parts.join(' | ') || '未获取到模型配置';
+        } catch (e) {
+            console.error("Load model config failed", e);
+            hint.textContent = '模型配置加载失败，请检查网络或后端（F12 查看控制台）';
+        }
+    }
+
+    function renderModelList(models) {
+        currentModels = models;
+        const container = document.getElementById('modelList');
+        container.innerHTML = '';
+
+        if (!models.length) {
+            container.innerHTML = '<div style="color:var(--text-muted);">暂无可用模型</div>';
+            return;
+        }
+
+        models.forEach(model => {
+            const item = document.createElement('div');
+            item.style.padding = '12px';
+            item.style.border = model.id === selectedModelId ? '1px solid rgba(0, 255, 157, 0.5)' : '1px solid #333';
+            item.style.borderRadius = '10px';
+            item.style.background = model.id === selectedModelId ? 'rgba(0, 255, 157, 0.08)' : '#1d1d1d';
+
+            const sourceText = model.source === 'remote' ?
+                '远端' :
+                (model.source === 'dynamic_local' ?
+                    '本地发现' :
+                    (model.source === 'manual' ? '手工' : '预置'));
+            const activeText = model.id === selectedModelId ? '当前默认' : '设为默认';
+
+            item.innerHTML = `
+                <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                    <div style="flex:1;">
+                        <div style="font-weight:600; color:white;">${model.label}</div>
+                        <div style="margin-top:6px; color:var(--text-muted); font-size:0.85rem;">
+                            模型名: ${model.model} | 来源: ${sourceText} | 提供方: ${model.provider}
+                        </div>
+                        <div style="margin-top:4px; color:var(--text-muted); font-size:0.82rem;">
+                            地址: ${model.base_url || '-'}
+                        </div>
+                    </div>
+                    <button class="btn ${model.id === selectedModelId ? '' : 'btn-primary'}"
+                        style="white-space:nowrap; ${model.id === selectedModelId ? 'background:#2c2c2c; color:#ddd;' : ''}"
+                        onclick="selectModel('${model.id}')">
+                        ${activeText}
+                    </button>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function selectModel(modelId) {
+        selectedModelId = modelId;
+        const model = currentModels.find(item => item.id === modelId);
+        if (model && model.provider === 'openai_compatible') {
+            document.getElementById('preferredModelInput').value = model.model || '';
+        }
+        renderModelList(currentModels);
+    }
+
+    async function saveModelConfig() {
+        const hint = document.getElementById('modelHint');
+
+        if (!selectedModelId && !manualModels.length) {
+            alert('请选择默认模型或添加模型名称');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/v1/model-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ...getProviderPayload(),
+                    model_id: selectedModelId
+                })
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || '保存失败');
+            }
+
+            selectedModelId = data.active_model_id;
+            renderModelList(data.models || []);
+            hint.textContent = `已保存配置 | 默认模型: ${data.active_model.label}`;
+        } catch (e) {
+            console.error("Save model config failed", e);
+            alert(`保存失败: ${e.message}`);
+        }
+    }
+
+    async function testModelConfig() {
+        const hint = document.getElementById('modelHint');
+        if (!selectedModelId && !manualModels.length) {
+            hint.textContent = '请先选择一个模型，或添加模型名称后再检测';
+            return;
+        }
+        hint.textContent = '正在检测连接...';
+
+        try {
+            const res = await fetch('/api/v1/model-config/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ...getProviderPayload(),
+                    model_id: selectedModelId
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.message || data.error || '检测失败');
+            }
+            hint.textContent = `连接检测成功 | ${data.message}`;
+        } catch (e) {
+            console.error("Test model config failed", e);
+            hint.textContent = `连接检测失败 | ${e.message}`;
+        }
+    }
+
+    async function refreshModels() {
+        const hint = document.getElementById('modelHint');
+        hint.textContent = '正在刷新远端模型列表...';
+
+        try {
+            const res = await fetch('/api/v1/model-config/refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(getProviderPayload())
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || '刷新失败');
+            }
+
+            if (!selectedModelId && data.active_model_id) {
+                selectedModelId = data.active_model_id;
+            }
+            renderModelList(data.models || []);
+            hint.textContent = data.remote_fetch?.message || '模型列表已刷新';
+        } catch (e) {
+            console.error("Refresh model config failed", e);
+            hint.textContent = `模型刷新失败 | ${e.message}`;
+        }
+    }
+
+    async function loadTargets() {
+        try {
+            const res = await fetch('/api/v1/targets');
+            const targets = await res.json();
+            const container = document.getElementById('targetList');
+            container.innerHTML = '';
+
+            targets.forEach(t => {
+                const tag = document.createElement('span');
+                tag.style.padding = '4px 10px';
+                tag.style.borderRadius = '16px';
+                tag.style.fontSize = '0.85rem';
+                tag.style.display = 'inline-flex';
+                tag.style.alignItems = 'center';
+                tag.style.gap = '6px';
+
+                if (t.type === 'preset') {
+                    tag.style.background = '#333';
+                    tag.style.color = '#ccc';
+                    tag.style.border = '1px solid #444';
+                    tag.innerHTML = `🔒 ${t.label_cn || t.name}`;
+                } else {
+                    tag.style.background = 'rgba(0, 255, 157, 0.15)';
+                    tag.style.color = '#00ff9d';
+                    tag.style.border = '1px solid rgba(0, 255, 157, 0.3)';
+                    tag.innerHTML = `✏️ ${t.name}`;
+                }
+                container.appendChild(tag);
+            });
+        } catch (e) {
+            console.error("Load targets failed", e);
+        }
+    }
+
+    async function addTarget() {
+        const input = document.getElementById('newTargetInput');
+        const name = input.value.trim();
+        if (!name) return;
+
+        try {
+            const res = await fetch('/api/v1/targets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name
+                })
+            });
+
+            if (res.ok) {
+                input.value = '';
+                loadTargets(); // Reload list
+            } else {
+                alert('添加失败 (Add Failed)');
+            }
+        } catch (e) {
+            alert('网络错误 (Network Error)');
+        }
+    }
+</script>
+{% endblock %}

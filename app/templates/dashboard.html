@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h1 style="margin-bottom: 24px;">📊 监控中心 (Monitor Dashboard)</h1>
+
+    <div class="grid-cols-2">
+        <div class="card">
+            <h3>🚨 实时报警流 (Real-time Alert Stream)</h3>
+            <p style="color: var(--text-muted); margin-top: 10px;">等待边缘事件上报...</p>
+            <div
+                style="margin-top: 20px; height: 200px; display: flex; align-items:center; justify-content:center; border: 1px dashed #333; border-radius: 8px;">
+                <span class="text-accent">实时画面占位符 (Live Feed)</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🖥️ 系统健康度 (System Health)</h3>
+            <div style="margin-top: 20px;">
+                <p>Ollama 连接状态: <span class="text-accent">检测中...</span></p>
+                <p>当前运行模型: <code style="background:#333; padding: 2px 6px; border-radius: 4px;">qwen3-vl:2b</code></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

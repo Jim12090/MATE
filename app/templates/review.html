@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="review-page">
+    <h1>👁️ 事件复核中心 (Event Review Center)</h1>
+
+    <!-- Filter Bar -->
+    <div class="card" style="margin-bottom: 24px;">
+        <div style="display:flex; gap: 12px; align-items:center;">
+            <input type="date" class="btn" style="background:#222; border:1px solid #444; color:white;">
+            <select class="btn" style="background:#222; border:1px solid #444; color:white;">
+                <option>所有事件 (All Events)</option>
+                <option>人员 (Person)</option>
+                <option>猪只 (Pig)</option>
+            </select>
+            <button class="btn btn-primary">筛选 (Filter)</button>
+        </div>
+    </div>
+
+    <!-- Events List -->
+    <div class="card">
+        <table style="width:100%; border-collapse: collapse; color: var(--text-muted);">
+            <thead>
+                <tr style="text-align:left; border-bottom: 1px solid #444;">
+                    <th style="padding:12px;">事件ID</th>
+                    <th style="padding:12px;">时间 (Time)</th>
+                    <th style="padding:12px;">类型 (Type)</th>
+                    <th style="padding:12px;">系统判定 (Verdict)</th>
+                    <th style="padding:12px;">操作 (Actions)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding:12px;">#EV-001</td>
+                    <td style="padding:12px;">10:42 AM</td>
+                    <td style="padding:12px; color:white;">人员 (非法闯入)</td>
+                    <td style="padding:12px;"><span style="color:var(--danger-color)">高风险 (High Risk)</span></td>
+                    <td style="padding:12px;">
+                        <button class="btn" style="padding:4px 8px; font-size:0.8rem; background:#333;">复核
+                            (Review)</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

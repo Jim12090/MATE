@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nxin 畜视核 | 智能边缘视觉分析</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Top Level 1 Menu -->
+        <header class="top-header">
+            <div class="logo">
+                ⚡ Nxin<span style="color:white">畜视核</span>
+            </div>
+            <nav class="top-nav">
+                <!-- User Profile or Global Settings could go here -->
+                <div style="color: var(--text-muted); font-size: 0.9em;">
+                    网关 ID: GW-001 | <span style="color: var(--text-accent);">● 在线</span>
+                </div>
+            </nav>
+        </header>
+
+        <div class="main-wrapper">
+            <!-- Left Level 2 Menu -->
+            <aside class="sidebar">
+                <div class="nav-section-title">核心功能</div>
+                <a href="{{ url_for('main.index') }}"
+                    class="nav-item {% if request.endpoint == 'main.index' %}active{% endif %}">
+                    📊 监控中心
+                </a>
+                <a href="{{ url_for('main.review') }}"
+                    class="nav-item {% if request.endpoint == 'main.review' %}active{% endif %}">
+                    👁️ 事件复核
+                </a>
+                <a href="{{ url_for('main.batch_lab') }}"
+                    class="nav-item {% if request.endpoint == 'main.batch_lab' %}active{% endif %}">
+                    🧪 批量实验室 (New)
+                </a>
+
+                <div class="nav-section-title">系统管理</div>
+                <a href="{{ url_for('main.config_page') }}"
+                    class="nav-item {% if request.endpoint == 'main.config_page' %}active{% endif %}">
+                    ⚙️ 模型配置
+                </a>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="content-area">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

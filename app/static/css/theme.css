@@ -1,0 +1,28 @@
+:root {
+    /* Color Palette - Cyber Agri-Tech */
+    --bg-body: #0f1115;
+    --bg-card: #181b21;
+    --bg-sidebar: #131519;
+    --bg-header: #131519;
+
+    --primary-color: #00ff9d;       /* Neon Green */
+    --primary-dim: rgba(0, 255, 157, 0.1);
+    --secondary-color: #7000ff;     /* AI Purple */
+    --danger-color: #ff4d4d;
+    --warning-color: #ffb84d;
+    --info-color: #00d0ff;
+
+    --text-main: #ffffff;
+    --text-muted: #8b949e;
+    
+    /* Effects */
+    --glass-bg: rgba(24, 27, 33, 0.7);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.3);
+    --shadow-glow: 0 0 10px rgba(0, 255, 157, 0.3);
+    
+    /* Layout */
+    --header-height: 60px;
+    --sidebar-width: 240px;
+    --border-radius: 12px;
+}

@@ -1,0 +1,635 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* Upload Zone - Compact */
+    .upload-zone {
+        border: 2px dashed var(--glass-border);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+        transition: all 0.3s;
+        border-color: #444;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 120px;
+        margin-bottom: 24px;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+        border-color: var(--primary-color);
+        background: var(--primary-dim);
+    }
+
+    /* Grid Layout - Larger Cards */
+    .file-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 24px;
+        margin-top: 24px;
+    }
+
+    /* Card Styling */
+    .preview-card {
+        background: #222;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s;
+    }
+
+    .preview-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--primary-color);
+    }
+
+    /* Image Thumbnail - Larger */
+    .preview-card img {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+        background: #000;
+        cursor: zoom-in;
+        transition: opacity 0.2s;
+    }
+
+    .preview-card img:hover {
+        opacity: 0.9;
+    }
+
+    /* Result Status Area */
+    .preview-status {
+        padding: 16px;
+        font-size: 0.9rem;
+        color: #ddd;
+        background: #1a1a1a;
+        flex: 1;
+        /* Fill remaining space */
+        min-height: 100px;
+        max-height: 300px;
+        /* Limit height */
+        overflow-y: auto;
+        /* Scrollable */
+        border-top: 1px solid #333;
+        white-space: pre-wrap;
+        /* Preserve line breaks from AI */
+        line-height: 1.6;
+        font-family: 'Consolas', 'Monaco', monospace;
+        /* Code-like font for results */
+    }
+
+    /* Remove Button */
+    .remove-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        transition: all 0.2s;
+    }
+
+    .remove-btn:hover {
+        background: var(--danger-color);
+        border-color: var(--danger-color);
+    }
+
+    /* Modal (Lightbox) */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 2000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+        backdrop-filter: blur(5px);
+    }
+
+    .modal-overlay.active {
+        display: flex;
+        opacity: 1;
+    }
+
+    .modal-content {
+        max-width: 95vw;
+        max-height: 95vh;
+        width: 1400px;
+        background: #1a1a1a;
+        border-radius: 12px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+    }
+
+    .modal-header {
+        padding: 16px 24px;
+        background: #222;
+        border-bottom: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-body {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2px;
+        background: #333;
+        /* Separator line color */
+        overflow: hidden;
+        height: 70vh;
+    }
+
+    .modal-panel {
+        background: #111;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .panel-title {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        z-index: 10;
+        pointer-events: none;
+    }
+
+    .image-container {
+        flex: 1;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+    }
+
+    .image-container img,
+    .image-container canvas {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .modal-close {
+        color: #aaa;
+        font-size: 28px;
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        line-height: 32px;
+        text-align: center;
+        transition: color 0.2s;
+    }
+
+    .modal-close:hover {
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="batch-lab">
+    <!-- Header -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+        <h1 style="font-size: 1.5rem;">🧪 批量实验室 (Batch Lab)</h1>
+
+        <div style="display:flex; gap:12px; align-items: center;">
+            <select id="modelSelect" class="btn"
+                style="background:var(--bg-card); color:white; border:1px solid #444; padding: 8px 16px; min-width: 240px;">
+                <option value="">加载模型中...</option>
+            </select>
+
+            <select id="modeSelect" class="btn" onchange="toggleEventInput()"
+                style="background:var(--bg-card); color:white; border:1px solid #444; padding: 8px 16px;">
+                <option value="detection">模式: 纯目标检测 (Detection)</option>
+                <option value="review">模式: 事件复核验证 (Review)</option>
+            </select>
+
+            <input type="text" id="eventInput"
+                style="display:none; background:#222; border:1px solid #444; color:white; padding:8px; border-radius:4px; width: 220px;"
+                placeholder="输入预期事件 (如: 发现老鼠)">
+
+            <button id="startBtn" class="btn btn-primary" onclick="startAnalysis()"
+                style="padding: 8px 20px; font-size: 1rem;">
+                开始分析 🚀
+            </button>
+        </div>
+    </div>
+
+    <!-- Upload Zone -->
+    <div class="card" style="padding: 0;"> <!-- Remove card padding to let zone fill it -->
+        <div class="upload-zone" id="dropZone" style="margin: 0; border: none;">
+            <div style="display:flex; align-items:center; gap: 16px;">
+                <svg style="width:40px; height:40px; color:var(--text-muted);" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                    </path>
+                </svg>
+                <div style="text-align:left;">
+                    <h3 style="margin:0; font-size:1.1rem; color: var(--text-main);">点击或拖拽上传图片</h3>
+                    <p style="color:var(--text-muted); margin:4px 0 0 0; font-size:0.85rem;">支持 JPG / PNG / WEBP，单张最大
+                        16MB</p>
+                </div>
+            </div>
+            <input type="file" id="fileInput" multiple hidden accept="image/*">
+        </div>
+    </div>
+
+    <!-- Preview Grid -->
+    <div class="file-preview-grid" id="previewGrid">
+        <!-- JS will insert items here -->
+    </div>
+</div>
+
+<!-- Modal Lightbox -->
+<div class="modal-overlay" id="imageModal" onclick="closeModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 id="modalTitle" style="margin:0; font-size:1.1rem; color:white;">
+                📋 事件详情
+            </h3>
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <!-- Left: Original -->
+            <div class="modal-panel">
+                <span class="panel-title">📸 原始图像 (Original)</span>
+                <div class="image-container">
+                    <img id="modalImgLeft" src="" alt="Original">
+                </div>
+            </div>
+            <!-- Right: Recognized -->
+            <div class="modal-panel">
+                <span class="panel-title">🎯 识别结果 (Recognition)</span>
+                <div class="image-container" id="canvasContainer">
+                    <!-- Image for background sizing, Canvas for overlay -->
+                    <img id="modalImgRight" src="" style="display:none;">
+                    <canvas id="modalCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const previewGrid = document.getElementById('previewGrid');
+    const startBtn = document.getElementById('startBtn');
+    const modelSelect = document.getElementById('modelSelect');
+
+    // Modal Elements
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImg');
+
+    let filesQueue = [];
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatDebugSection(debug) {
+        if (!debug) return '';
+        const debugText = JSON.stringify(debug, null, 2);
+        return `
+            <details style="margin-top:10px;">
+                <summary style="cursor:pointer; color:#9ecbff;">HTTP 调试</summary>
+                <pre style="margin-top:8px; white-space:pre-wrap; word-break:break-word; background:#111; border:1px solid #333; border-radius:8px; padding:10px;">${escapeHtml(debugText)}</pre>
+            </details>
+        `;
+    }
+
+    document.addEventListener('DOMContentLoaded', loadModels);
+
+    async function loadModels() {
+        try {
+            const response = await fetch('/api/v1/model-config');
+            const data = await response.json();
+            const models = data.models || [];
+            const activeModelId = data.active_model_id || (data.active_model && data.active_model.id);
+
+            modelSelect.innerHTML = '';
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.id;
+                const sourceText = model.source === 'remote' ? '远端' : (model.source === 'dynamic_local' ? '本地发现' : '预置');
+                option.textContent = `${model.label} [${sourceText}]`;
+                option.selected = model.id === activeModelId;
+                modelSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Load models failed', error);
+            modelSelect.innerHTML = '<option value="">模型加载失败</option>';
+        }
+    }
+
+    function toggleEventInput() {
+        const mode = document.getElementById('modeSelect').value;
+        const input = document.getElementById('eventInput');
+        if (mode === 'review') {
+            input.style.display = 'block';
+            input.focus();
+        } else {
+            input.style.display = 'none';
+        }
+    }
+
+    // --- Upload Handlers ---
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+    dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+    dropZone.addEventListener('drop', handleDrop);
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+    function handleDrop(e) {
+        dropZone.classList.remove('dragover');
+        handleFiles(e.dataTransfer.files);
+    }
+
+    function handleFiles(files) {
+        Array.from(files).forEach(file => {
+            if (!file.type.startsWith('image/')) return;
+            const id = Date.now() + Math.random().toString(36).substr(2, 9);
+            const fileObj = { id, file, status: 'pending' };
+            filesQueue.push(fileObj);
+            createPreviewCard(fileObj);
+        });
+    }
+
+    // --- Card Creation ---
+    function createPreviewCard(fileObj) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const div = document.createElement('div');
+            div.className = 'preview-card';
+            div.id = 'card-' + fileObj.id;
+            // Note: onclick on image opens modal
+            div.innerHTML = `
+                <img src="${e.target.result}" alt="preview" onclick="openModal('${fileObj.id}')" title="点击查看详情">
+                <button class="remove-btn" onclick="removeFile('${fileObj.id}')" title="删除">×</button>
+                <div class="preview-status" id="status-${fileObj.id}">
+                    <span style="color:#666">⏳ 等待分析...</span>
+                </div>
+            `;
+            previewGrid.appendChild(div);
+        }
+        reader.readAsDataURL(fileObj.file);
+    }
+
+    function removeFile(id) {
+        filesQueue = filesQueue.filter(f => f.id !== id);
+        const el = document.getElementById('card-' + id);
+        if (el) el.remove();
+    }
+
+    // --- Modal Functions ---
+    // --- Modal Functions ---
+    function openModal(fileId) {
+        const fileObj = filesQueue.find(f => f.id === fileId);
+        if (!fileObj) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imgSrc = e.target.result;
+            // Set Left Image
+            document.getElementById('modalImgLeft').src = imgSrc;
+
+            // Set Header
+            let titleText = "📋 图片详情";
+            if (fileObj.resultData) {
+                // If we have parsed JSON result
+                // Try to find status or fallback to generic
+                // Or use the event input user provided? 
+                // Let's use the raw JSON or a summary.
+                const hasReviewStatus = fileObj.resultData.some(item => item.status);
+                if (hasReviewStatus) {
+                    const review = fileObj.resultData[0]; // Assuming single event check usually
+                    titleText = `📋 ${review.status} (${review.reason ? review.reason.substring(0, 30) + '...' : ''})`;
+                } else {
+                    titleText = `🎯 目标检测结果(${fileObj.resultData.length} objects)`;
+                }
+            }
+            document.getElementById('modalTitle').innerText = titleText;
+
+            // Prepare Canvas for Right Side
+            const canvas = document.getElementById('modalCanvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = () => {
+                // Sync canvas size to image
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                // Draw Image
+                ctx.drawImage(img, 0, 0);
+
+                // Draw BBoxes
+                if (fileObj.resultData && Array.isArray(fileObj.resultData)) {
+                    fileObj.resultData.forEach(item => {
+                        if (item.bbox_2d) {
+                            drawBBox(ctx, item, img.width, img.height);
+                        }
+                    });
+                }
+            };
+            img.src = imgSrc;
+        };
+        reader.readAsDataURL(fileObj.file);
+
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function drawBBox(ctx, item, imgW, imgH) {
+        // Validation for bbox
+        const bbox = item.bbox_2d;
+        if (!bbox || bbox.length !== 4) return;
+
+        // Qwen [0-1000] normalization check
+        // If values are <= 1, they might be 0-1 normalized? No, Qwen usually 1000.
+        // But let's assume standard Qwen output [xmin, ymin, xmax, ymax] in 0-1000 scale.
+        // We need to scale to imgW, imgH
+        const minX = (bbox[0] / 1000) * imgW;
+        const minY = (bbox[1] / 1000) * imgH;
+        const maxX = (bbox[2] / 1000) * imgW;
+        const maxY = (bbox[3] / 1000) * imgH;
+        const width = maxX - minX;
+        const height = maxY - minY;
+
+        // Draw Box
+        ctx.strokeStyle = '#00ff9d'; // Neon Green
+        ctx.lineWidth = 4;
+        ctx.strokeRect(minX, minY, width, height);
+
+        // Background for text
+        ctx.font = 'bold 24px Arial';
+        const text = `${item.label || item.status || 'Obj'} ${item.confidence ? Math.round(item.confidence * 100) + '%' : ''} `;
+        const textMetrics = ctx.measureText(text);
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(minX, minY - 34, textMetrics.width + 10, 34);
+
+        // Draw Text
+        ctx.fillStyle = '#00ff9d';
+        ctx.fillText(text, minX + 5, minY - 8);
+    }
+
+    function closeModal() {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', function (event) {
+        if (event.key === "Escape" && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    // --- Analysis Logic ---
+    async function startAnalysis() {
+        // Filter out completed tasks
+        const pendingItems = filesQueue.filter(f => f.status !== 'success');
+
+        if (filesQueue.length === 0) {
+            alert('请先上传至少一张图片！');
+            return;
+        }
+
+        if (pendingItems.length === 0) {
+            alert('当前列表中的图片均已完成分析。如有新图请上传。');
+            return;
+        }
+
+        const mode = document.getElementById('modeSelect').value;
+        const eventInfo = document.getElementById('eventInput').value;
+
+        // Validation for Review Mode
+        if (mode === 'review' && !eventInfo.trim()) {
+            alert("⚠️ 请输入预期事件信息！\n例如：'发现老鼠' 或 '人员闯入'，以便大模型进行针对性复核。");
+            document.getElementById('eventInput').focus();
+            return;
+        }
+
+        startBtn.disabled = true;
+        startBtn.innerHTML = '<span class="spinner"></span> 分析中...';
+
+        // Process sequentially to avoid overwhelming Ollama
+        for (let fileObj of filesQueue) {
+            // Logic Optimization: Check status before processing
+            if (fileObj.status === 'success') {
+                continue; // Skip this file
+            }
+
+            const statusEl = document.getElementById('status-' + fileObj.id);
+            if (!statusEl) continue;
+
+            statusEl.innerHTML = "<span style='color:var(--info-color)'>🔄 正在大模型推理中...</span>";
+
+            const formData = new FormData();
+            formData.append('file', fileObj.file);
+            formData.append('mode', mode);
+            if (modelSelect.value) {
+                formData.append('model_id', modelSelect.value);
+            }
+            if (mode === 'review') {
+                formData.append('event_info', eventInfo);
+            }
+
+            try {
+                const response = await fetch('/api/v1/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Mark as success
+                    // Mark as success
+                    fileObj.status = 'success';
+                    fileObj.debugData = result.debug || null;
+
+                    // Parse Data for BBox drawing
+                    try {
+                        // The result.data is a string from OLLAMA, usually JSON markdown
+                        // We need to clean it to get pure JSON
+                        let cleanJson = result.data;
+                        if (cleanJson.includes('```json')) {
+                            cleanJson = cleanJson.split('```json')[1].split('```')[0];
+                        } else if (cleanJson.includes('```')) {
+                            // General code block
+                            cleanJson = cleanJson.split('```')[1].split('```')[0];
+                        }
+                        fileObj.resultData = JSON.parse(cleanJson);
+                    } catch (e) {
+                        console.error("JSON Parse failed", e);
+                        fileObj.resultData = [];
+                    }
+
+                    statusEl.innerHTML = `<strong style='color:var(--primary-color)'>✅ 分析完成</strong><button onclick="openModal('${fileObj.id}')" style="margin-left:10px; cursor:pointer; background:none; border:1px solid #666; color:#ccc; border-radius:4px; font-size:0.8rem;">查看详情</button><br><hr style='border:0; border-top:1px solid #333; margin:8px 0;'>${escapeHtml(result.data)}${formatDebugSection(result.debug)}`;
+                } else {
+                    // Mark as error (can be retried)
+                    fileObj.status = 'error';
+                    fileObj.debugData = result.debug || null;
+                    statusEl.innerHTML = `<strong style='color:var(--danger-color)'>❌ 失败</strong><br>${escapeHtml(result.error || '请求失败')}${formatDebugSection(result.debug)}`;
+                }
+            } catch (error) {
+                console.error(error);
+                fileObj.status = 'error';
+                statusEl.innerHTML = "<span style='color:var(--danger-color)'>⚠️ 网络请求错误</span>";
+            }
+        }
+
+        startBtn.disabled = false;
+        startBtn.innerHTML = "开始分析 🚀";
+    }
+</script>
+{% endblock %}

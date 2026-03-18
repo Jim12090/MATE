@@ -1,0 +1,67 @@
+[
+  {
+    "name": "Person",
+    "type": "preset",
+    "label_cn": "人员"
+  },
+  {
+    "name": "Car",
+    "type": "preset",
+    "label_cn": "车辆"
+  },
+  {
+    "name": "Pig",
+    "type": "preset",
+    "label_cn": "猪只"
+  },
+  {
+    "name": "Rat",
+    "type": "preset",
+    "label_cn": "老鼠"
+  },
+  {
+    "name": "Bird",
+    "type": "preset",
+    "label_cn": "鸟类"
+  },
+  {
+    "name": "Cat",
+    "type": "preset",
+    "label_cn": "猫"
+  },
+  {
+    "name": "Dog",
+    "type": "preset",
+    "label_cn": "狗"
+  },
+  {
+    "name": "Chicken",
+    "type": "preset",
+    "label_cn": "鸡"
+  },
+  {
+    "name": "人员吸烟",
+    "type": "custom",
+    "label_cn": "人员吸烟"
+  },
+  {
+    "name": "检查人员工服是否合规（蓝色）",
+    "type": "custom",
+    "label_cn": "检查人员工服是否合规（蓝色）"
+  },
+  {
+    "name": "是否发现人员，人员上身衣服颜色如果是{蓝色/白色},返回工服合规，反之返回工服不合规",
+    "type": "custom",
+    "label_cn": "是否发现人员，人员上身衣服颜色如果是{蓝色/白色},返回工服合规，反之返回工服不合规"
+  },
+  {
+    "name": "是否发现有人员倒地",
+    "type": "custom",
+    "label_cn": "是否发现有人员倒地"
+  },
+  {
+    "name": "人员扫地",
+    "type": "custom",
+    "label_cn": "人员扫地"
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "active_model_id": "openai:gpt-4o-mini",
+  "provider_config": {
+    "provider": "openai_compatible",
+    "base_url": "https://aigateway.edgecloudapp.com/v1/5e5f121300c3ba95b4d2d8fefae0c38d/nxinyun_chat",
+    "api_key": "eeb6c1825a5845d4829cda914fe2a1b6",
+    "preferred_model": "gpt-4o-mini",
+    "manual_models": [
+      "gpt-4o-mini",
+      "gpt-5-mini"
+    ]
+  },
+  "runtime_models": [],
+  "remote_fetch": {
+    "status": "idle",
+    "message": "",
+    "fetched_at": "",
+    "provider": "openai_compatible"
+  },
+  "connection_test": {
+    "status": "success",
+    "message": "openai_compatible 连接正常，测试模型: gpt-4o-mini",
+    "tested_at": "2026-03-18T08:24:37Z"
+  }
+}
